@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <!-- Include Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Include Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom styles if needed */
+    </style>
+</head>
+
+<body class="bg-gray-100 p-6">
+    <div id="admin-dashboard">
+        <!-- Header Section -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
+            <div class="bg-gradient-to-r from-green-600 to-green-700 p-6 flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-white">Admin Dashboard</h1>
+                    <p class="text-green-100 mt-1">Manage admission applications</p>
+                </div>
+                <button id="logout-btn"
+                    class="bg-white text-green-700 px-6 py-2 rounded-lg font-semibold hover:bg-green-50 transition-colors flex items-center">
+                    <i data-lucide="log-out" class="w-5 h-5 mr-2"></i>
+                    Logout
+                </button>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-6">
+                <div class="bg-blue-50 rounded-lg p-4 text-center">
+                    <i data-lucide="users" class="w-8 h-8 text-blue-600 mx-auto mb-2"></i>
+                    <p class="text-2xl font-bold text-gray-800" id="total-count">0</p>
+                    <p class="text-sm text-gray-600">Total</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-4 text-center">
+                    <i data-lucide="file-text" class="w-8 h-8 text-yellow-600 mx-auto mb-2"></i>
+                    <p class="text-2xl font-bold text-gray-800" id="pending-count">0</p>
+                    <p class="text-sm text-gray-600">Pending</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4 text-center">
+                    <i data-lucide="check-circle" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+                    <p class="text-2xl font-bold text-gray-800" id="approved-count">0</p>
+                    <p class="text-sm text-gray-600">Approved</p>
+                </div>
+                <div class="bg-red-50 rounded-lg p-4 text-center">
+                    <i data-lucide="x-circle" class="w-8 h-8 text-red-600 mx-auto mb-2"></i>
+                    <p class="text-2xl font-bold text-gray-800" id="rejected-count">0</p>
+                    <p class="text-sm text-gray-600">Rejected</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applications Section -->
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Applications</h2>
+                <div class="flex gap-2">
+                    <button id="filter-all"
+                        class="px-4 py-2 rounded-lg font-semibold transition-colors bg-blue-600 text-white">
+                        All
+                    </button>
+                    <button id="filter-pending"
+                        class="px-4 py-2 rounded-lg font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200">
+                        Pending
+                    </button>
+                    <button id="filter-approved"
+                        class="px-4 py-2 rounded-lg font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200">
+                        Approved
+                    </button>
+                    <button id="filter-rejected"
+                        class="px-4 py-2 rounded-lg font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200">
+                        Rejected
+                    </button>
+                </div>
+            </div>
+
+            <!-- Applications List -->
+            <div id="applications-list" class="space-y-4">
+                <!-- Application cards will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // State variables
+        let applications = [];
+        let mockApplications = [];
+        let filterStatus = 'all';
+
+        // Function to load applications from localStorage
+        function loadApplicationsFromLocalStorage() {
+            mockApplications = [];
+
+            // Iterate through all localStorage keys to find application objects
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+
+                // Only process keys that match the pattern for application data
+                if (key.startsWith('application_')) {
+                    try {
+                        const appData = JSON.parse(localStorage.getItem(key));
+
+                        // Ensure the object has required properties
+                        if (appData && appData.name && appData.email) {
+                            // Set default values if not present
+                            const application = {
+                                id: appData.id || key.replace('application_', ''),
+                                name: appData.name,
+                                fatherName: appData.fatherName || 'N/A',
+                                course: appData.course || 'N/A',
+                                email: appData.email,
+                                phone: appData.phone || 'N/A',
+                                address: appData.address || 'N/A',
+                                status: appData.status || 'pending',
+                                ...appData // Spread remaining properties
+                            };
+                            mockApplications.push(application);
+                        }
+                    } catch (e) {
+                        console.error(`Error parsing application data from key: ${key}`, e);
+                    }
+                }
+            }
+
+            return mockApplications;
+        }
+
+        // DOM elements
+        const logoutBtn = document.getElementById('logout-btn');
+        const totalCount = document.getElementById('total-count');
+        const pendingCount = document.getElementById('pending-count');
+        const approvedCount = document.getElementById('approved-count');
+        const rejectedCount = document.getElementById('rejected-count');
+        const applicationsList = document.getElementById('applications-list');
+
+        // Filter buttons
+        const filterAllBtn = document.getElementById('filter-all');
+        const filterPendingBtn = document.getElementById('filter-pending');
+        const filterApprovedBtn = document.getElementById('filter-approved');
+        const filterRejectedBtn = document.getElementById('filter-rejected');
+
+        // Initialize the dashboard
+        function initDashboard() {
+            loadApplications();
+            setupEventListeners();
+        }
+
+        //API
+
+        // Load applications from localStorage
+        function loadApplications() {
+            // Load all applications from localStorage
+            loadApplicationsFromLocalStorage();
+            applications = mockApplications;
+            updateStats();
+            renderApplications();
+        }
+
+        // Update statistics
+        function updateStats() {
+            totalCount.textContent = applications.length;
+            pendingCount.textContent = applications.filter(app => app.status === 'pending').length;
+            approvedCount.textContent = applications.filter(app => app.status === 'approved').length;
+            rejectedCount.textContent = applications.filter(app => app.status === 'rejected').length;
+        }
+
+        // Render applications based on current filter
+        function renderApplications() {
+            applicationsList.innerHTML = '';
+
+            const filteredApps = applications.filter(app =>
+                filterStatus === 'all' ? true : app.status === filterStatus
+            );
+
+            if (filteredApps.length === 0) {
+                applicationsList.innerHTML = '<p class="text-gray-500 text-center py-4">No applications found</p>';
+                return;
+            }
+
+            filteredApps.forEach(app => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-50 rounded-lg p-4 border border-gray-200';
+                card.innerHTML = `
+                    <div class="grid grid-cols-2 gap-4 items-center">
+                        <div>
+                            <h4 class="text-md font-semibold text-gray-700"><b>Name:</b> ${app.name}</h4>
+                            <p class="text-sm text-gray-600"><b>Father's Name:</b> ${app.fatherName}</p>
+                            <p class="text-sm text-gray-600"><b>Course:</b> ${app.course}</p>
+                            <p class="text-sm text-gray-600"><b>Email:</b> ${app.email}</p>
+                            <p class="text-sm text-gray-600"><b>Phone Number:</b> ${app.phone}</p>
+                            <p class="text-sm text-gray-600"><b>Address:</b> ${app.address}</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-10 justify-items-end">
+                            <div class="px-3 py-1 rounded-full text-xs font-medium ${app.status === 'pending' ? 'bg-yellow-100  text-yellow-800' :
+                            app.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                            }">
+                            ${app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                            </div>
+
+                            <div class="ml-2 flex gap-2">
+                                <button type="button" class="approve-btn bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-semibold hover:bg-green-600 transition-colors" data-app-id="${app.id}"> Approve </button>
+                                <button type="button" class="reject-btn bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors" data-app-id="${app.id}"> Reject </button>
+                            </div>
+
+                        </div>
+
+                    </div>
+                `;
+                applicationsList.appendChild(card);
+            });
+
+            // Add event listeners to approve and reject buttons
+            attachApproveRejectListeners();
+        }
+
+        // Function to update application status in localStorage
+        function updateApplicationStatus(appId, newStatus) {
+            // Find the application in the array
+            const app = applications.find(a => a.id === appId);
+            if (app) {
+                app.status = newStatus;
+
+                // Update in localStorage
+                const storageKey = `application_${appId}`;
+                const updatedApp = JSON.parse(localStorage.getItem(storageKey));
+                updatedApp.status = newStatus;
+                localStorage.setItem(storageKey, JSON.stringify(updatedApp));
+
+                // Refresh the display
+                updateStats();
+                renderApplications();
+            }
+        }
+
+        // Function to attach event listeners to approve and reject buttons
+        function attachApproveRejectListeners() {
+            const approveButtons = document.querySelectorAll('.approve-btn');
+            const rejectButtons = document.querySelectorAll('.reject-btn');
+
+            approveButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const appId = parseInt(btn.getAttribute('data-app-id'));
+                    updateApplicationStatus(appId, 'approved');
+                });
+            });
+
+            rejectButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const appId = parseInt(btn.getAttribute('data-app-id'));
+                    updateApplicationStatus(appId, 'rejected');
+                });
+            });
+        }
+
+        // Update filter buttons styling
+        function updateFilterButtons() {
+            // Reset all buttons
+            filterAllBtn.className = 'px-4 py-2 rounded-lg font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+            filterPendingBtn.className = 'px-4 py-2 rounded-lg font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+            filterApprovedBtn.className = 'px-4 py-2 rounded-lg font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+            filterRejectedBtn.className = 'px-4 py-2 rounded-lg font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+
+            // Highlight the active button
+            if (filterStatus === 'all') {
+                filterAllBtn.className = 'px-4 py-2 rounded-lg font-semibold transition-colors bg-blue-600 text-white';
+            } else if (filterStatus === 'pending') {
+                filterPendingBtn.className = 'px-4 py-2 rounded-lg font-semibold transition-colors bg-yellow-600 text-white';
+            } else if (filterStatus === 'approved') {
+                filterApprovedBtn.className = 'px-4 py-2 rounded-lg font-semibold transition-colors bg-green-600 text-white';
+            } else if (filterStatus === 'rejected') {
+                filterRejectedBtn.className = 'px-4 py-2 rounded-lg font-semibold transition-colors bg-red-600 text-white';
+            }
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Logout button
+            logoutBtn.addEventListener('click', () => {
+                window.location.href = "AdminLogin.html"
+            });
+
+            // Filter buttons
+            filterAllBtn.addEventListener('click', () => {
+                filterStatus = 'all';
+                updateFilterButtons();
+                renderApplications();
+            });
+
+            filterPendingBtn.addEventListener('click', () => {
+                filterStatus = 'pending';
+                updateFilterButtons();
+                renderApplications();
+            });
+
+            filterApprovedBtn.addEventListener('click', () => {
+                filterStatus = 'approved';
+                updateFilterButtons();
+                renderApplications();
+            });
+
+            filterRejectedBtn.addEventListener('click', () => {
+                filterStatus = 'rejected';
+                updateFilterButtons();
+                renderApplications();
+            });
+        }
+
+        // Initialize the dashboard when the page loads
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+
+</html>
